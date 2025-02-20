@@ -1,0 +1,59 @@
+import tweepy
+import telebot
+import time
+
+# Настройки Telegram
+TELEGRAM_TOKEN = '7717675463:AAGU9ykuRjPvA2dn291eEY-V6BH3t6mQxCo'
+CHAT_ID = '398684230'
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
+
+# Настройки X API
+API_KEY = 'e483k2AGBdHxTjz3L7P0WGMT2'
+API_SECRET = 'YPGTKb2hVcjp94YPNugAud5p3eKcyiuqXgZdrJcCgnKDCx0pyF'
+ACCESS_TOKEN = '1793708545411608576-NDUImIBn5L859b9BWuVJ0lcoHQnlGZ'
+ACCESS_TOKEN_SECRET = '4NFNUITk4HqhXAYvbvSkEVYRR9anwDp2dBDGFhLfOMhGm'
+
+# Аутентификация в X
+auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
+auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
+api = tweepy.API(auth)
+
+# Ключевые слова для фильтрации
+KEYWORDS = ['listing', 'new coin', 'launch', 'partnership', 'announce', 'gem', 'pump']
+
+# Список аккаунтов для мониторинга
+ACCOUNTS = ['cz_binance', 'Binance', 'Kucoincom', 'elonmusk', 'VitalikButerin', 
+            'brian_armstrong', 'saylor', 'CathieDWood']
+
+# Класс для стриминга твитов
+class MyStreamListener(tweepy.StreamListener):
+    def on_status(self, status):
+        # Проверяем, от нужного ли аккаунта твит
+        if status.user.screen_name.lower() in [acc.lower() for acc in ACCOUNTS]:
+            text = status.text.lower()
+            # Проверяем ключевые слова
+            if any(keyword in text for keyword in KEYWORDS):
+                message = f"Новость от @{status.user.screen_name}: {status.text}\nСсылка: https://twitter.com/{status.user.screen_name}/status/{status.id}"
+                bot.send_message(CHAT_ID, message)
+                print(message)
+
+    def on_error(self, status_code):
+        if status_code == 420:  # Превышен лимит запросов
+            return False
+        print(f"Ошибка: {status_code}")
+
+# Запуск стриминга
+def start_stream():
+    stream_listener = MyStreamListener()
+    stream = tweepy.Stream(auth=api.auth, listener=stream_listener)
+    stream.filter(follow=[str(api.get_user(screen_name=acc).id) for acc in ACCOUNTS])
+
+# Основной цикл
+if __name__ == "__main__":
+    print("Бот запущен...")
+    while True:
+        try:
+            start_stream()
+        except Exception as e:
+            print(f"Ошибка: {e}. Перезапуск через 5 секунд...")
+            time.sleep(5)
